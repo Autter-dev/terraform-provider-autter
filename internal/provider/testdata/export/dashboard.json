@@ -1,0 +1,46 @@
+{
+  "id": "rdb_checkout",
+  "repository_id": "repo-1",
+  "name": "Checkout health",
+  "variables": { "service": "checkout", "environment": null, "range": "24h" },
+  "widgets": [
+    {
+      "id": "errors",
+      "title": "Server errors by route",
+      "viz": "bar",
+      "source": "errors",
+      "measure": "count",
+      "field": null,
+      "group_by": ["route"],
+      "filters": [
+        { "field": "status_code", "op": "gte", "value": 500 },
+        { "field": "environment", "op": "in", "value": ["production", "staging"] }
+      ]
+    },
+    {
+      "id": "latency",
+      "title": "p95 latency",
+      "viz": "line",
+      "source": "spans",
+      "measure": "p95",
+      "field": "duration_ms",
+      "group_by": [],
+      "filters": [{ "field": "route", "op": "starts_with", "value": "/checkout" }]
+    },
+    {
+      "id": "slowest",
+      "title": "Slowest routes",
+      "viz": "table",
+      "source": "sql",
+      "sql": "SELECT route, max(duration_ms) AS slowest FROM runtime_spans GROUP BY route ORDER BY slowest DESC LIMIT 10"
+    }
+  ],
+  "layout": [
+    { "id": "errors", "w": 6, "h": 2 },
+    { "id": "latency", "w": 6, "h": 2 },
+    { "id": "slowest", "w": 12, "h": 2 }
+  ],
+  "created_by": "u-adm",
+  "created_at": "2026-11-01T09:00:00.000Z",
+  "updated_at": "2026-11-10T12:30:00.000Z"
+}

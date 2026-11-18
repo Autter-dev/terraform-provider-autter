@@ -1,0 +1,2078 @@
+# Generated from backend/src/routes/public-api/ by `npm run openapi:generate -w backend`.
+# Do not edit: backend/src/routes/public-api/openapi.test.ts fails when this file and the code differ.
+openapi: 3.1.0
+info:
+  title: Autter API
+  version: 1.0.0
+  description: "Alert rules, synthetic checks and dashboards as code. Authenticate with a personal access token (Settings → Access Tokens) as a bearer token: one without scope restrictions, or one with api:read (reads) and api:write (writes). A token scoped to MCP only is refused. The API has its own rate limit per token, apart from MCP's: 60 reads and 10 writes a minute. Request bodies can be up to 1 MB. Fields are snake_case. This document is generated from the server's validation schemas."
+servers:
+  - url: https://api.autter.dev/api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Repositories
+  - name: Alert rules
+  - name: Synthetic checks
+  - name: Dashboards
+paths:
+  /repositories:
+    get:
+      operationId: listRepositories
+      tags:
+        - Repositories
+      summary: List the organization's repositories
+      description: "Every repository connected to the token's organization. Scope: api:read."
+      responses:
+        "200":
+          description: The repositories.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RepositoryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /repositories/{repository}/alert-rules:
+    parameters:
+      - name: repository
+        in: path
+        required: true
+        description: The repository's id, or its full name with the slash encoded (owner%2Frepo), or a short name only one repository has.
+        schema:
+          type: string
+    get:
+      operationId: listAlertRules
+      tags:
+        - Alert rules
+      summary: List a repository's alert rules
+      description: "Which Runtime issue events (new, regressed, spiking, assigned, resolved) reach Slack, email, in-app or on-call. Reading lists a repository's starting rules the first time. Writing needs the owner or admin role. Oldest first. Scope: api:read."
+      responses:
+        "200":
+          description: The alert rules.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRuleList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /repositories/{repository}/alert-rules/{name}:
+    parameters:
+      - name: repository
+        in: path
+        required: true
+        description: The repository's id, or its full name with the slash encoded (owner%2Frepo), or a short name only one repository has.
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        description: The alert rule's name, URL-encoded. Names are unique per repository through the API.
+        schema:
+          type: string
+          maxLength: 120
+    get:
+      operationId: getAlertRule
+      tags:
+        - Alert rules
+      summary: Get a alert rule by name
+      description: "Scope: api:read."
+      responses:
+        "200":
+          description: The alert rule.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    put:
+      operationId: putAlertRule
+      tags:
+        - Alert rules
+      summary: Create or update a alert rule by name
+      description: "Idempotent: the body is the whole alert rule, and fields left out take their defaults. Creates the alert rule when none has this name (201), updates the one that has it (200), and writes nothing when it already matches (200). Each write is recorded in the organization's audit log. Which Runtime issue events (new, regressed, spiking, assigned, resolved) reach Slack, email, in-app or on-call. Reading lists a repository's starting rules the first time. Writing needs the owner or admin role. Scope: api:write."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertRuleInput"
+      responses:
+        "200":
+          description: Updated, or already as sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "400":
+          $ref: "#/components/responses/InvalidArgument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "422":
+          $ref: "#/components/responses/LimitReached"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    delete:
+      operationId: deleteAlertRule
+      tags:
+        - Alert rules
+      summary: Delete a alert rule by name
+      description: "Recorded in the organization's audit log. Scope: api:write."
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deleted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /repositories/{repository}/synthetic-checks:
+    parameters:
+      - name: repository
+        in: path
+        required: true
+        description: The repository's id, or its full name with the slash encoded (owner%2Frepo), or a short name only one repository has.
+        schema:
+          type: string
+    get:
+      operationId: listSyntheticChecks
+      tags:
+        - Synthetic checks
+      summary: List a repository's synthetic checks
+      description: "HTTP checks Autter requests on a schedule; a check that keeps failing opens a Runtime issue. Refused with feature_disabled until the organization turns synthetic checks on. Writing needs the owner or admin role; the plan limits the number of checks and the fastest interval (limit_reached). Oldest first. Scope: api:read."
+      responses:
+        "200":
+          description: The synthetic checks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyntheticCheckList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /repositories/{repository}/synthetic-checks/{name}:
+    parameters:
+      - name: repository
+        in: path
+        required: true
+        description: The repository's id, or its full name with the slash encoded (owner%2Frepo), or a short name only one repository has.
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        description: The synthetic check's name, URL-encoded. Names are unique per repository through the API.
+        schema:
+          type: string
+          maxLength: 120
+    get:
+      operationId: getSyntheticCheck
+      tags:
+        - Synthetic checks
+      summary: Get a synthetic check by name
+      description: "Scope: api:read."
+      responses:
+        "200":
+          description: The synthetic check.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyntheticCheck"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    put:
+      operationId: putSyntheticCheck
+      tags:
+        - Synthetic checks
+      summary: Create or update a synthetic check by name
+      description: "Idempotent: the body is the whole synthetic check, and fields left out take their defaults. Creates the synthetic check when none has this name (201), updates the one that has it (200), and writes nothing when it already matches (200). Each write is recorded in the organization's audit log. HTTP checks Autter requests on a schedule; a check that keeps failing opens a Runtime issue. Refused with feature_disabled until the organization turns synthetic checks on. Writing needs the owner or admin role; the plan limits the number of checks and the fastest interval (limit_reached). Scope: api:write."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyntheticCheckInput"
+      responses:
+        "200":
+          description: Updated, or already as sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyntheticCheck"
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyntheticCheck"
+        "400":
+          $ref: "#/components/responses/InvalidArgument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "422":
+          $ref: "#/components/responses/LimitReached"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    delete:
+      operationId: deleteSyntheticCheck
+      tags:
+        - Synthetic checks
+      summary: Delete a synthetic check by name
+      description: "Recorded in the organization's audit log. Scope: api:write."
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deleted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /repositories/{repository}/dashboards:
+    parameters:
+      - name: repository
+        in: path
+        required: true
+        description: The repository's id, or its full name with the slash encoded (owner%2Frepo), or a short name only one repository has.
+        schema:
+          type: string
+    get:
+      operationId: listDashboards
+      tags:
+        - Dashboards
+      summary: List a repository's dashboards
+      description: "Charts over a repository's logs, traces, errors, request metrics and LLM calls. Refused with feature_disabled until the organization turns Runtime dashboards on. Reading lists the two starter dashboards the first time. Creating needs a non-viewer role; changing or deleting needs the owner or admin role, or to be the member who created it. Oldest first. Scope: api:read."
+      responses:
+        "200":
+          description: The dashboards.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /repositories/{repository}/dashboards/{name}:
+    parameters:
+      - name: repository
+        in: path
+        required: true
+        description: The repository's id, or its full name with the slash encoded (owner%2Frepo), or a short name only one repository has.
+        schema:
+          type: string
+      - name: name
+        in: path
+        required: true
+        description: The dashboard's name, URL-encoded. Names are unique per repository through the API.
+        schema:
+          type: string
+          maxLength: 120
+    get:
+      operationId: getDashboard
+      tags:
+        - Dashboards
+      summary: Get a dashboard by name
+      description: "Scope: api:read."
+      responses:
+        "200":
+          description: The dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    put:
+      operationId: putDashboard
+      tags:
+        - Dashboards
+      summary: Create or update a dashboard by name
+      description: "Idempotent: the body is the whole dashboard, and fields left out take their defaults. Creates the dashboard when none has this name (201), updates the one that has it (200), and writes nothing when it already matches (200). Each write is recorded in the organization's audit log. Charts over a repository's logs, traces, errors, request metrics and LLM calls. Refused with feature_disabled until the organization turns Runtime dashboards on. Reading lists the two starter dashboards the first time. Creating needs a non-viewer role; changing or deleting needs the owner or admin role, or to be the member who created it. Scope: api:write."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardInput"
+      responses:
+        "200":
+          description: Updated, or already as sent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/InvalidArgument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "422":
+          $ref: "#/components/responses/LimitReached"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+    delete:
+      operationId: deleteDashboard
+      tags:
+        - Dashboards
+      summary: Delete a dashboard by name
+      description: "Recorded in the organization's audit log. Scope: api:write."
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deleted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NameConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+components:
+  responses:
+    InvalidArgument:
+      description: The request does not validate; the message says what to change.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: No token, or a token that is revoked, expired or no longer a member.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: The token lacks the scope (insufficient_scope), the member lacks the role (insufficient_role), or the feature is off (feature_disabled).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: No such repository (repository_not_found) or resource (not_found).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NameConflict:
+      description: Two or more resources already share this name (name_conflict).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    LimitReached:
+      description: The plan's limit is reached (limit_reached).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: The token's rate limit is reached (rate_limited); retry after Retry-After seconds.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: A personal access token (autter_pat_…).
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - unauthorized
+                - insufficient_scope
+                - insufficient_role
+                - feature_disabled
+                - repository_not_found
+                - not_found
+                - name_conflict
+                - invalid_argument
+                - limit_reached
+                - rate_limited
+                - internal_error
+            message:
+              type: string
+              description: What went wrong and, for a request that can be corrected, what to change.
+            detail: {}
+          required:
+            - code
+            - message
+          additionalProperties: false
+      required:
+        - error
+      additionalProperties: false
+    Repository:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          description: The short name, as the dashboard shows it.
+        full_name:
+          type: string
+          description: owner/repo
+        default_branch:
+          anyOf:
+            - type: string
+            - type: "null"
+        enabled:
+          type: boolean
+      required:
+        - id
+        - name
+        - full_name
+        - default_branch
+        - enabled
+      additionalProperties: false
+    RepositoryList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+                description: The short name, as the dashboard shows it.
+              full_name:
+                type: string
+                description: owner/repo
+              default_branch:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              enabled:
+                type: boolean
+            required:
+              - id
+              - name
+              - full_name
+              - default_branch
+              - enabled
+            additionalProperties: false
+      required:
+        - data
+      additionalProperties: false
+    AlertRuleInput:
+      type: object
+      properties:
+        name:
+          description: When sent, it must equal the name in the path.
+          type: string
+          maxLength: 120
+        enabled:
+          description: Default true.
+          type: boolean
+        triggers:
+          minItems: 1
+          type: array
+          items:
+            type: string
+            enum:
+              - new
+              - regressed
+              - spiking
+              - assigned
+              - resolved
+        filters:
+          type: object
+          properties:
+            environments:
+              description: "Empty or absent: any environment."
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                maxLength: 200
+            services:
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                maxLength: 200
+            levels:
+              description: Issue levels, for example fatal, error, warning.
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                maxLength: 200
+            priorities:
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                enum:
+                  - p0
+                  - p1
+                  - p2
+                  - p3
+                  - none
+            error_type:
+              anyOf:
+                - type: object
+                  properties:
+                    op:
+                      type: string
+                      enum:
+                        - equals
+                        - contains
+                        - starts_with
+                        - regex
+                    value:
+                      type: string
+                      maxLength: 200
+                  required:
+                    - op
+                    - value
+                - type: "null"
+            message:
+              description: Matched against the issue's message, or its title when it has none.
+              anyOf:
+                - type: object
+                  properties:
+                    op:
+                      type: string
+                      enum:
+                        - equals
+                        - contains
+                        - starts_with
+                        - regex
+                    value:
+                      type: string
+                      maxLength: 200
+                  required:
+                    - op
+                    - value
+                - type: "null"
+            assignee:
+              description: any (default), assigned, unassigned, me (the rule's author) or user:<id>.
+              type: string
+              maxLength: 205
+            threshold:
+              description: Alert only once the issue has at least this many events or users within the window.
+              anyOf:
+                - type: object
+                  properties:
+                    min_events:
+                      anyOf:
+                        - type: integer
+                          minimum: 1
+                          maximum: 9007199254740991
+                        - type: "null"
+                    min_users:
+                      anyOf:
+                        - type: integer
+                          minimum: 1
+                          maximum: 9007199254740991
+                        - type: "null"
+                    window_minutes:
+                      description: Default 60.
+                      type: integer
+                      minimum: 1
+                      maximum: 10080
+                - type: "null"
+        actions:
+          type: object
+          properties:
+            slack:
+              anyOf:
+                - type: object
+                  properties:
+                    channel_id:
+                      description: "Null or absent: the repository's Slack route."
+                      anyOf:
+                        - type: string
+                          maxLength: 200
+                        - type: "null"
+                - type: "null"
+            email:
+              description: A line in each recipient's daily update summary.
+              anyOf:
+                - type: object
+                  properties:
+                    assignee:
+                      type: boolean
+                    watchers:
+                      description: The issue's assignee and every member who assigned, resolved, ignored or reopened it.
+                      type: boolean
+                    user_ids:
+                      maxItems: 50
+                      type: array
+                      items:
+                        type: string
+                        maxLength: 200
+                    everyone:
+                      type: boolean
+                - type: "null"
+            in_app:
+              anyOf:
+                - type: object
+                  properties:
+                    assignee:
+                      type: boolean
+                    watchers:
+                      description: The issue's assignee and every member who assigned, resolved, ignored or reopened it.
+                      type: boolean
+                    user_ids:
+                      maxItems: 50
+                      type: array
+                      items:
+                        type: string
+                        maxLength: 200
+                    everyone:
+                      type: boolean
+                - type: "null"
+            oncall:
+              description: Page on-call when the issue is critical (p0, or a fatal error).
+              type: boolean
+            auto_assignments:
+              description: Also send automatic assignments to Slack and on-call.
+              type: boolean
+          description: At least one of slack, email, in_app or oncall.
+      required:
+        - triggers
+        - actions
+      additionalProperties: false
+    AlertRule:
+      type: object
+      properties:
+        id:
+          type: string
+        repository_id:
+          type: string
+        name:
+          type: string
+        enabled:
+          type: boolean
+        triggers:
+          type: array
+          items:
+            type: string
+            enum:
+              - new
+              - regressed
+              - spiking
+              - assigned
+              - resolved
+        filters:
+          type: object
+          properties:
+            environments:
+              description: "Empty or absent: any environment."
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                maxLength: 200
+            services:
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                maxLength: 200
+            levels:
+              description: Issue levels, for example fatal, error, warning.
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                maxLength: 200
+            priorities:
+              maxItems: 50
+              type: array
+              items:
+                type: string
+                enum:
+                  - p0
+                  - p1
+                  - p2
+                  - p3
+                  - none
+            error_type:
+              anyOf:
+                - type: object
+                  properties:
+                    op:
+                      type: string
+                      enum:
+                        - equals
+                        - contains
+                        - starts_with
+                        - regex
+                    value:
+                      type: string
+                      maxLength: 200
+                  required:
+                    - op
+                    - value
+                  additionalProperties: false
+                - type: "null"
+            message:
+              description: Matched against the issue's message, or its title when it has none.
+              anyOf:
+                - type: object
+                  properties:
+                    op:
+                      type: string
+                      enum:
+                        - equals
+                        - contains
+                        - starts_with
+                        - regex
+                    value:
+                      type: string
+                      maxLength: 200
+                  required:
+                    - op
+                    - value
+                  additionalProperties: false
+                - type: "null"
+            assignee:
+              description: any (default), assigned, unassigned, me (the rule's author) or user:<id>.
+              type: string
+              maxLength: 205
+            threshold:
+              description: Alert only once the issue has at least this many events or users within the window.
+              anyOf:
+                - type: object
+                  properties:
+                    min_events:
+                      anyOf:
+                        - type: integer
+                          minimum: 1
+                          maximum: 9007199254740991
+                        - type: "null"
+                    min_users:
+                      anyOf:
+                        - type: integer
+                          minimum: 1
+                          maximum: 9007199254740991
+                        - type: "null"
+                    window_minutes:
+                      description: Default 60.
+                      type: integer
+                      minimum: 1
+                      maximum: 10080
+                  additionalProperties: false
+                - type: "null"
+          required:
+            - environments
+            - services
+            - levels
+            - priorities
+            - error_type
+            - message
+            - assignee
+            - threshold
+          additionalProperties: false
+        actions:
+          type: object
+          properties:
+            slack:
+              anyOf:
+                - type: object
+                  properties:
+                    channel_id:
+                      description: "Null or absent: the repository's Slack route."
+                      anyOf:
+                        - type: string
+                          maxLength: 200
+                        - type: "null"
+                  additionalProperties: false
+                - type: "null"
+            email:
+              description: A line in each recipient's daily update summary.
+              anyOf:
+                - type: object
+                  properties:
+                    assignee:
+                      type: boolean
+                    watchers:
+                      description: The issue's assignee and every member who assigned, resolved, ignored or reopened it.
+                      type: boolean
+                    user_ids:
+                      maxItems: 50
+                      type: array
+                      items:
+                        type: string
+                        maxLength: 200
+                    everyone:
+                      type: boolean
+                  additionalProperties: false
+                - type: "null"
+            in_app:
+              anyOf:
+                - type: object
+                  properties:
+                    assignee:
+                      type: boolean
+                    watchers:
+                      description: The issue's assignee and every member who assigned, resolved, ignored or reopened it.
+                      type: boolean
+                    user_ids:
+                      maxItems: 50
+                      type: array
+                      items:
+                        type: string
+                        maxLength: 200
+                    everyone:
+                      type: boolean
+                  additionalProperties: false
+                - type: "null"
+            oncall:
+              description: Page on-call when the issue is critical (p0, or a fatal error).
+              type: boolean
+            auto_assignments:
+              description: Also send automatic assignments to Slack and on-call.
+              type: boolean
+          required:
+            - slack
+            - email
+            - in_app
+            - oncall
+            - auto_assignments
+          additionalProperties: false
+        is_default:
+          type: boolean
+          description: One of the rules a repository starts with.
+        created_by:
+          anyOf:
+            - type: string
+            - type: "null"
+        created_at:
+          type: string
+          description: An ISO 8601 timestamp.
+        updated_at:
+          type: string
+          description: An ISO 8601 timestamp.
+      required:
+        - id
+        - repository_id
+        - name
+        - enabled
+        - triggers
+        - filters
+        - actions
+        - is_default
+        - created_by
+        - created_at
+        - updated_at
+      additionalProperties: false
+    AlertRuleList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              repository_id:
+                type: string
+              name:
+                type: string
+              enabled:
+                type: boolean
+              triggers:
+                type: array
+                items:
+                  type: string
+                  enum:
+                    - new
+                    - regressed
+                    - spiking
+                    - assigned
+                    - resolved
+              filters:
+                type: object
+                properties:
+                  environments:
+                    description: "Empty or absent: any environment."
+                    maxItems: 50
+                    type: array
+                    items:
+                      type: string
+                      maxLength: 200
+                  services:
+                    maxItems: 50
+                    type: array
+                    items:
+                      type: string
+                      maxLength: 200
+                  levels:
+                    description: Issue levels, for example fatal, error, warning.
+                    maxItems: 50
+                    type: array
+                    items:
+                      type: string
+                      maxLength: 200
+                  priorities:
+                    maxItems: 50
+                    type: array
+                    items:
+                      type: string
+                      enum:
+                        - p0
+                        - p1
+                        - p2
+                        - p3
+                        - none
+                  error_type:
+                    anyOf:
+                      - type: object
+                        properties:
+                          op:
+                            type: string
+                            enum:
+                              - equals
+                              - contains
+                              - starts_with
+                              - regex
+                          value:
+                            type: string
+                            maxLength: 200
+                        required:
+                          - op
+                          - value
+                        additionalProperties: false
+                      - type: "null"
+                  message:
+                    description: Matched against the issue's message, or its title when it has none.
+                    anyOf:
+                      - type: object
+                        properties:
+                          op:
+                            type: string
+                            enum:
+                              - equals
+                              - contains
+                              - starts_with
+                              - regex
+                          value:
+                            type: string
+                            maxLength: 200
+                        required:
+                          - op
+                          - value
+                        additionalProperties: false
+                      - type: "null"
+                  assignee:
+                    description: any (default), assigned, unassigned, me (the rule's author) or user:<id>.
+                    type: string
+                    maxLength: 205
+                  threshold:
+                    description: Alert only once the issue has at least this many events or users within the window.
+                    anyOf:
+                      - type: object
+                        properties:
+                          min_events:
+                            anyOf:
+                              - type: integer
+                                minimum: 1
+                                maximum: 9007199254740991
+                              - type: "null"
+                          min_users:
+                            anyOf:
+                              - type: integer
+                                minimum: 1
+                                maximum: 9007199254740991
+                              - type: "null"
+                          window_minutes:
+                            description: Default 60.
+                            type: integer
+                            minimum: 1
+                            maximum: 10080
+                        additionalProperties: false
+                      - type: "null"
+                required:
+                  - environments
+                  - services
+                  - levels
+                  - priorities
+                  - error_type
+                  - message
+                  - assignee
+                  - threshold
+                additionalProperties: false
+              actions:
+                type: object
+                properties:
+                  slack:
+                    anyOf:
+                      - type: object
+                        properties:
+                          channel_id:
+                            description: "Null or absent: the repository's Slack route."
+                            anyOf:
+                              - type: string
+                                maxLength: 200
+                              - type: "null"
+                        additionalProperties: false
+                      - type: "null"
+                  email:
+                    description: A line in each recipient's daily update summary.
+                    anyOf:
+                      - type: object
+                        properties:
+                          assignee:
+                            type: boolean
+                          watchers:
+                            description: The issue's assignee and every member who assigned, resolved, ignored or reopened it.
+                            type: boolean
+                          user_ids:
+                            maxItems: 50
+                            type: array
+                            items:
+                              type: string
+                              maxLength: 200
+                          everyone:
+                            type: boolean
+                        additionalProperties: false
+                      - type: "null"
+                  in_app:
+                    anyOf:
+                      - type: object
+                        properties:
+                          assignee:
+                            type: boolean
+                          watchers:
+                            description: The issue's assignee and every member who assigned, resolved, ignored or reopened it.
+                            type: boolean
+                          user_ids:
+                            maxItems: 50
+                            type: array
+                            items:
+                              type: string
+                              maxLength: 200
+                          everyone:
+                            type: boolean
+                        additionalProperties: false
+                      - type: "null"
+                  oncall:
+                    description: Page on-call when the issue is critical (p0, or a fatal error).
+                    type: boolean
+                  auto_assignments:
+                    description: Also send automatic assignments to Slack and on-call.
+                    type: boolean
+                required:
+                  - slack
+                  - email
+                  - in_app
+                  - oncall
+                  - auto_assignments
+                additionalProperties: false
+              is_default:
+                type: boolean
+                description: One of the rules a repository starts with.
+              created_by:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              created_at:
+                type: string
+                description: An ISO 8601 timestamp.
+              updated_at:
+                type: string
+                description: An ISO 8601 timestamp.
+            required:
+              - id
+              - repository_id
+              - name
+              - enabled
+              - triggers
+              - filters
+              - actions
+              - is_default
+              - created_by
+              - created_at
+              - updated_at
+            additionalProperties: false
+      required:
+        - data
+      additionalProperties: false
+    SyntheticCheckInput:
+      type: object
+      properties:
+        name:
+          description: When sent, it must equal the name in the path.
+          type: string
+          maxLength: 120
+        url:
+          type: string
+          maxLength: 2000
+          description: An http or https address reachable from the internet.
+        method:
+          description: Default GET.
+          type: string
+          enum:
+            - GET
+            - HEAD
+        headers:
+          description: "Request headers, stored encrypted and never returned. Absent: no headers. At most 20."
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+        expected_status:
+          description: Default 200.
+          type: integer
+          minimum: 100
+          maximum: 599
+        body_contains:
+          description: Text the response body must contain (GET only).
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: "null"
+        timeout_ms:
+          description: Default 10000.
+          type: integer
+          minimum: 1000
+          maximum: 30000
+        interval_seconds:
+          description: Default 300. The free plan runs checks every 300 seconds at the fastest.
+          anyOf:
+            - type: number
+              const: 60
+            - type: number
+              const: 300
+            - type: number
+              const: 900
+            - type: number
+              const: 3600
+        latency_threshold_ms:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 30000
+            - type: "null"
+        failures_to_fire:
+          description: Failures in a row before the check opens a Runtime issue. Default 2.
+          type: integer
+          minimum: 1
+          maximum: 10
+        service:
+          description: "The service the issue is filed under. Default: the URL's host."
+          anyOf:
+            - type: string
+              maxLength: 100
+            - type: "null"
+        environment:
+          description: Default production.
+          anyOf:
+            - type: string
+              maxLength: 64
+            - type: "null"
+        enabled:
+          description: Default true.
+          type: boolean
+      required:
+        - url
+      additionalProperties: false
+    SyntheticCheck:
+      type: object
+      properties:
+        id:
+          type: string
+        repository_id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+          description: "As stored: normalized, so https://example.com reads back as https://example.com/."
+        method:
+          type: string
+          enum:
+            - GET
+            - HEAD
+        header_names:
+          type: array
+          items:
+            type: string
+          description: The names of the stored request headers; their values are never returned.
+        expected_status:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        body_contains:
+          anyOf:
+            - type: string
+            - type: "null"
+        timeout_ms:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        interval_seconds:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        latency_threshold_ms:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        failures_to_fire:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        service:
+          anyOf:
+            - type: string
+            - type: "null"
+        environment:
+          type: string
+        enabled:
+          type: boolean
+        last_ok:
+          anyOf:
+            - type: boolean
+            - type: "null"
+        last_status:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        last_duration_ms:
+          anyOf:
+            - type: number
+            - type: "null"
+        last_error:
+          anyOf:
+            - type: string
+            - type: "null"
+        last_checked_at:
+          anyOf:
+            - type: string
+              description: An ISO 8601 timestamp.
+            - type: "null"
+        next_due_at:
+          type: string
+          description: An ISO 8601 timestamp.
+        consecutive_failures:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        firing:
+          type: boolean
+          description: It has failed failures_to_fire times in a row and its Runtime issue is open.
+        issue_id:
+          type: string
+          description: The Runtime issue the check opens while it fails.
+        created_by:
+          anyOf:
+            - type: string
+            - type: "null"
+        created_at:
+          type: string
+          description: An ISO 8601 timestamp.
+        updated_at:
+          type: string
+          description: An ISO 8601 timestamp.
+      required:
+        - id
+        - repository_id
+        - name
+        - url
+        - method
+        - header_names
+        - expected_status
+        - body_contains
+        - timeout_ms
+        - interval_seconds
+        - latency_threshold_ms
+        - failures_to_fire
+        - service
+        - environment
+        - enabled
+        - last_ok
+        - last_status
+        - last_duration_ms
+        - last_error
+        - last_checked_at
+        - next_due_at
+        - consecutive_failures
+        - firing
+        - issue_id
+        - created_by
+        - created_at
+        - updated_at
+      additionalProperties: false
+    SyntheticCheckList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              repository_id:
+                type: string
+              name:
+                type: string
+              url:
+                type: string
+                description: "As stored: normalized, so https://example.com reads back as https://example.com/."
+              method:
+                type: string
+                enum:
+                  - GET
+                  - HEAD
+              header_names:
+                type: array
+                items:
+                  type: string
+                description: The names of the stored request headers; their values are never returned.
+              expected_status:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              body_contains:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              timeout_ms:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              interval_seconds:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              latency_threshold_ms:
+                anyOf:
+                  - type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  - type: "null"
+              failures_to_fire:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              service:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              environment:
+                type: string
+              enabled:
+                type: boolean
+              last_ok:
+                anyOf:
+                  - type: boolean
+                  - type: "null"
+              last_status:
+                anyOf:
+                  - type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  - type: "null"
+              last_duration_ms:
+                anyOf:
+                  - type: number
+                  - type: "null"
+              last_error:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              last_checked_at:
+                anyOf:
+                  - type: string
+                    description: An ISO 8601 timestamp.
+                  - type: "null"
+              next_due_at:
+                type: string
+                description: An ISO 8601 timestamp.
+              consecutive_failures:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              firing:
+                type: boolean
+                description: It has failed failures_to_fire times in a row and its Runtime issue is open.
+              issue_id:
+                type: string
+                description: The Runtime issue the check opens while it fails.
+              created_by:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              created_at:
+                type: string
+                description: An ISO 8601 timestamp.
+              updated_at:
+                type: string
+                description: An ISO 8601 timestamp.
+            required:
+              - id
+              - repository_id
+              - name
+              - url
+              - method
+              - header_names
+              - expected_status
+              - body_contains
+              - timeout_ms
+              - interval_seconds
+              - latency_threshold_ms
+              - failures_to_fire
+              - service
+              - environment
+              - enabled
+              - last_ok
+              - last_status
+              - last_duration_ms
+              - last_error
+              - last_checked_at
+              - next_due_at
+              - consecutive_failures
+              - firing
+              - issue_id
+              - created_by
+              - created_at
+              - updated_at
+            additionalProperties: false
+      required:
+        - data
+      additionalProperties: false
+    DashboardInput:
+      type: object
+      properties:
+        name:
+          description: When sent, it must equal the name in the path.
+          type: string
+          maxLength: 120
+        variables:
+          type: object
+          properties:
+            service:
+              anyOf:
+                - type: string
+                  maxLength: 200
+                - type: "null"
+            environment:
+              description: 'null: every environment except test ones. "all": every environment.'
+              anyOf:
+                - type: string
+                  maxLength: 200
+                - type: "null"
+            range:
+              description: Default 24h.
+              type: string
+              enum:
+                - 1h
+                - 6h
+                - 24h
+                - 7d
+                - 30d
+        widgets:
+          maxItems: 24
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                description: "Letters, digits, dashes or underscores. Absent: w1, w2, … by position, so give every widget an id or none."
+                type: string
+                maxLength: 40
+              title:
+                type: string
+                maxLength: 120
+              viz:
+                type: string
+                enum:
+                  - line
+                  - bar
+                  - stat
+                  - table
+              source:
+                type: string
+                enum:
+                  - logs
+                  - spans
+                  - errors
+                  - metrics
+                  - llm
+                  - sql
+              measure:
+                description: Required unless source is sql.
+                type: string
+                enum:
+                  - count
+                  - rate
+                  - p50
+                  - p95
+                  - p99
+                  - sum
+              field:
+                anyOf:
+                  - type: string
+                    maxLength: 60
+                  - type: "null"
+              group_by:
+                maxItems: 3
+                type: array
+                items:
+                  type: string
+                  maxLength: 60
+              filters:
+                maxItems: 10
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                      maxLength: 60
+                    op:
+                      type: string
+                      enum:
+                        - eq
+                        - neq
+                        - contains
+                        - not_contains
+                        - starts_with
+                        - in
+                        - not_in
+                        - gt
+                        - gte
+                        - lt
+                        - lte
+                    value:
+                      anyOf:
+                        - type: string
+                          maxLength: 200
+                        - type: number
+                        - maxItems: 50
+                          type: array
+                          items:
+                            anyOf:
+                              - type: string
+                                maxLength: 200
+                              - type: number
+                  required:
+                    - field
+                    - op
+                    - value
+              sql:
+                description: "For source sql: one read-only SELECT."
+                type: string
+                maxLength: 8000
+            required:
+              - title
+              - viz
+              - source
+        layout:
+          description: "Absent: every widget at its default size, in widget order."
+          maxItems: 24
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                maxLength: 40
+              w:
+                type: integer
+                minimum: 1
+                maximum: 12
+                description: Columns of 12.
+              h:
+                type: integer
+                minimum: 1
+                maximum: 4
+                description: Rows.
+            required:
+              - id
+              - w
+              - h
+      required:
+        - widgets
+      additionalProperties: false
+    Dashboard:
+      type: object
+      properties:
+        id:
+          type: string
+        repository_id:
+          type: string
+        name:
+          type: string
+        variables:
+          type: object
+          properties:
+            service:
+              anyOf:
+                - type: string
+                - type: "null"
+            environment:
+              anyOf:
+                - type: string
+                - type: "null"
+            range:
+              type: string
+              enum:
+                - 1h
+                - 6h
+                - 24h
+                - 7d
+                - 30d
+          required:
+            - service
+            - environment
+            - range
+          additionalProperties: false
+        widgets:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                description: "Letters, digits, dashes or underscores. Absent: w1, w2, … by position, so give every widget an id or none."
+                type: string
+                maxLength: 40
+              title:
+                type: string
+                maxLength: 120
+              viz:
+                type: string
+                enum:
+                  - line
+                  - bar
+                  - stat
+                  - table
+              source:
+                type: string
+                enum:
+                  - logs
+                  - spans
+                  - errors
+                  - metrics
+                  - llm
+                  - sql
+              measure:
+                description: Required unless source is sql.
+                type: string
+                enum:
+                  - count
+                  - rate
+                  - p50
+                  - p95
+                  - p99
+                  - sum
+              field:
+                anyOf:
+                  - type: string
+                    maxLength: 60
+                  - type: "null"
+              group_by:
+                maxItems: 3
+                type: array
+                items:
+                  type: string
+                  maxLength: 60
+              filters:
+                maxItems: 10
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                      maxLength: 60
+                    op:
+                      type: string
+                      enum:
+                        - eq
+                        - neq
+                        - contains
+                        - not_contains
+                        - starts_with
+                        - in
+                        - not_in
+                        - gt
+                        - gte
+                        - lt
+                        - lte
+                    value:
+                      anyOf:
+                        - type: string
+                          maxLength: 200
+                        - type: number
+                        - maxItems: 50
+                          type: array
+                          items:
+                            anyOf:
+                              - type: string
+                                maxLength: 200
+                              - type: number
+                  required:
+                    - field
+                    - op
+                    - value
+                  additionalProperties: false
+              sql:
+                description: "For source sql: one read-only SELECT."
+                type: string
+                maxLength: 8000
+            required:
+              - id
+              - title
+              - viz
+              - source
+            additionalProperties: false
+        layout:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                maxLength: 40
+              w:
+                type: integer
+                minimum: 1
+                maximum: 12
+                description: Columns of 12.
+              h:
+                type: integer
+                minimum: 1
+                maximum: 4
+                description: Rows.
+            required:
+              - id
+              - w
+              - h
+            additionalProperties: false
+        created_by:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Null for the two starter dashboards.
+        created_at:
+          type: string
+          description: An ISO 8601 timestamp.
+        updated_at:
+          type: string
+          description: An ISO 8601 timestamp.
+      required:
+        - id
+        - repository_id
+        - name
+        - variables
+        - widgets
+        - layout
+        - created_by
+        - created_at
+        - updated_at
+      additionalProperties: false
+    DashboardList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              repository_id:
+                type: string
+              name:
+                type: string
+              variables:
+                type: object
+                properties:
+                  service:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  environment:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  range:
+                    type: string
+                    enum:
+                      - 1h
+                      - 6h
+                      - 24h
+                      - 7d
+                      - 30d
+                required:
+                  - service
+                  - environment
+                  - range
+                additionalProperties: false
+              widgets:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      description: "Letters, digits, dashes or underscores. Absent: w1, w2, … by position, so give every widget an id or none."
+                      type: string
+                      maxLength: 40
+                    title:
+                      type: string
+                      maxLength: 120
+                    viz:
+                      type: string
+                      enum:
+                        - line
+                        - bar
+                        - stat
+                        - table
+                    source:
+                      type: string
+                      enum:
+                        - logs
+                        - spans
+                        - errors
+                        - metrics
+                        - llm
+                        - sql
+                    measure:
+                      description: Required unless source is sql.
+                      type: string
+                      enum:
+                        - count
+                        - rate
+                        - p50
+                        - p95
+                        - p99
+                        - sum
+                    field:
+                      anyOf:
+                        - type: string
+                          maxLength: 60
+                        - type: "null"
+                    group_by:
+                      maxItems: 3
+                      type: array
+                      items:
+                        type: string
+                        maxLength: 60
+                    filters:
+                      maxItems: 10
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          field:
+                            type: string
+                            maxLength: 60
+                          op:
+                            type: string
+                            enum:
+                              - eq
+                              - neq
+                              - contains
+                              - not_contains
+                              - starts_with
+                              - in
+                              - not_in
+                              - gt
+                              - gte
+                              - lt
+                              - lte
+                          value:
+                            anyOf:
+                              - type: string
+                                maxLength: 200
+                              - type: number
+                              - maxItems: 50
+                                type: array
+                                items:
+                                  anyOf:
+                                    - type: string
+                                      maxLength: 200
+                                    - type: number
+                        required:
+                          - field
+                          - op
+                          - value
+                        additionalProperties: false
+                    sql:
+                      description: "For source sql: one read-only SELECT."
+                      type: string
+                      maxLength: 8000
+                  required:
+                    - id
+                    - title
+                    - viz
+                    - source
+                  additionalProperties: false
+              layout:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      maxLength: 40
+                    w:
+                      type: integer
+                      minimum: 1
+                      maximum: 12
+                      description: Columns of 12.
+                    h:
+                      type: integer
+                      minimum: 1
+                      maximum: 4
+                      description: Rows.
+                  required:
+                    - id
+                    - w
+                    - h
+                  additionalProperties: false
+              created_by:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: Null for the two starter dashboards.
+              created_at:
+                type: string
+                description: An ISO 8601 timestamp.
+              updated_at:
+                type: string
+                description: An ISO 8601 timestamp.
+            required:
+              - id
+              - repository_id
+              - name
+              - variables
+              - widgets
+              - layout
+              - created_by
+              - created_at
+              - updated_at
+            additionalProperties: false
+      required:
+        - data
+      additionalProperties: false
+    Deleted:
+      type: object
+      properties:
+        deleted:
+          type: boolean
+          const: true
+        id:
+          type: string
+      required:
+        - deleted
+        - id
+      additionalProperties: false

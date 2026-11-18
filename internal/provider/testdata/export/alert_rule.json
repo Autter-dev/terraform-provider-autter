@@ -1,0 +1,28 @@
+{
+  "id": "iar_checkout_errors",
+  "repository_id": "repo-1",
+  "name": "Checkout errors",
+  "enabled": true,
+  "triggers": ["new", "regressed", "spiking"],
+  "filters": {
+    "environments": ["production"],
+    "services": ["checkout", "payments"],
+    "levels": ["error", "fatal"],
+    "priorities": ["p0", "p1"],
+    "error_type": null,
+    "message": { "op": "contains", "value": "Timeout" },
+    "assignee": "any",
+    "threshold": { "min_events": 5, "min_users": null, "window_minutes": 30 }
+  },
+  "actions": {
+    "slack": { "channel_id": null },
+    "email": { "assignee": true, "watchers": true, "user_ids": [], "everyone": false },
+    "in_app": null,
+    "oncall": true,
+    "auto_assignments": false
+  },
+  "is_default": false,
+  "created_by": "u-adm",
+  "created_at": "2026-11-01T09:00:00.000Z",
+  "updated_at": "2026-11-10T12:30:00.000Z"
+}
