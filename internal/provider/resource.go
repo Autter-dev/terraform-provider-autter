@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/Autter-dev/terraform-provider-autter/internal/client"
 )
@@ -45,6 +46,8 @@ type resourceExtras interface {
 	addToBody(ctx context.Context, attrs map[string]attr.Value, body map[string]any)
 	// checkAnswer refuses an API answer this version cannot represent.
 	checkAnswer(answer client.Resource) error
+	// view returns the answer as the resource's state sees it (a journey check has no HTTP-only fields).
+	view(answer client.Resource) client.Resource
 	// snapshotFields records what drift detection compares.
 	snapshotFields(answer client.Resource, s snapshot)
 	// read sets them in state from an answer; imported is true when there is no snapshot.
@@ -61,7 +64,45 @@ var (
 	_ resource.ResourceWithConfigure      = (*apiResource)(nil)
 	_ resource.ResourceWithImportState    = (*apiResource)(nil)
 	_ resource.ResourceWithValidateConfig = (*apiResource)(nil)
+	_ resource.ResourceWithModifyPlan     = (*apiResource)(nil)
 )
+
+// stableComputed are the read-only attributes an update does not change.
+var stableComputed = map[string]bool{"id": true, "is_default": true, "created_by": true, "created_at": true, "issue_id": true}
+
+// ModifyPlan marks the read-only attributes an update changes (updated_at, a
+// check's status) as unknown when the plan changes the resource. The framework
+// does this itself only when the change shows before attribute plan modifiers
+// run; a check's kind-dependent defaults (kindDefaultString, kindDefaultInt64)
+// can introduce the change afterwards.
+func (r *apiResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() || req.State.Raw.IsNull() || req.Plan.Raw.Equal(req.State.Raw) {
+		return
+	}
+	for _, name := range r.spec.computed {
+		if stableComputed[name] {
+			continue
+		}
+		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root(name), unknownOf(r.attrType(name)))...)
+	}
+}
+
+// unknownOf is an unknown value of type t.
+func unknownOf(t attr.Type) attr.Value {
+	switch typ := t.(type) {
+	case basetypes.StringType:
+		return types.StringUnknown()
+	case basetypes.BoolType:
+		return types.BoolUnknown()
+	case basetypes.Int64Type:
+		return types.Int64Unknown()
+	case basetypes.Float64Type:
+		return types.Float64Unknown()
+	case basetypes.ListType:
+		return types.ListUnknown(typ.ElemType)
+	}
+	return types.DynamicUnknown()
+}
 
 func (r *apiResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_" + r.spec.typeName
@@ -141,6 +182,13 @@ func (r *apiResource) checkAnswer(answer client.Resource) error {
 	return nil
 }
 
+func (r *apiResource) view(answer client.Resource) client.Resource {
+	if r.spec.extras != nil {
+		return r.spec.extras.view(answer)
+	}
+	return answer
+}
+
 func copyAttrs(o types.Object) map[string]attr.Value {
 	out := map[string]attr.Value{}
 	for k, v := range o.Attributes() {
@@ -183,6 +231,7 @@ func (r *apiResource) apply(ctx context.Context, plan types.Object, private priv
 		diags.AddError("Unsupported "+r.spec.kind.Label(), err.Error())
 		return plan, diags
 	}
+	answer = r.view(answer)
 	if create && !created {
 		id, _ := answer["id"].(string)
 		diags.AddWarning(fmt.Sprintf("Adopted an existing %s", r.spec.kind.Label()),
@@ -261,6 +310,7 @@ func (r *apiResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		resp.Diagnostics.AddError("Unsupported "+r.spec.kind.Label(), err.Error())
 		return
 	}
+	answer = r.view(answer)
 
 	recorded, diags := loadSnapshot(ctx, req.Private)
 	resp.Diagnostics.Append(diags...)

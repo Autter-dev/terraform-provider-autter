@@ -8,8 +8,12 @@ FEATURES:
 
 - **Resource `autter_alert_rule`**: which runtime issue events reach whom (triggers, filters, Slack, email,
   in-app and on-call actions).
-- **Resource `autter_synthetic_check`**: an HTTP check on a schedule, with sensitive request headers and the
-  last run's status as read-only attributes.
+- **Resource `autter_synthetic_check`**: a check on a schedule, with the last run's status as read-only
+  attributes. `kind = "http"` (the default) requests a URL, with sensitive request headers.
+  `kind = "journey"` replays a saved journey of the repository in a browser against the site's address
+  (`journey_id`, intervals of 900, 3600, 21600 or 86400 seconds, `first_passed_at`); the HTTP-only attributes
+  are rejected at plan for it. A check's kind is fixed: changing it replaces the check. A check of a kind this
+  version does not know fails with "upgrade the provider".
 - **Resource `autter_dashboard`**: a Runtime dashboard with its variables, widgets and layout. A filter's
   single value is `value`, a list (`in`, `not_in`) is `values`.
 - **Data source `autter_repository`**: a connected repository by `full_name` or `name`.

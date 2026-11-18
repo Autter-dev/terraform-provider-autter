@@ -177,7 +177,7 @@ paths:
       tags:
         - Synthetic checks
       summary: List a repository's synthetic checks
-      description: "HTTP checks Autter requests on a schedule; a check that keeps failing opens a Runtime issue. Refused with feature_disabled until the organization turns synthetic checks on. Writing needs the owner or admin role; the plan limits the number of checks and the fastest interval (limit_reached). Oldest first. Scope: api:read."
+      description: "HTTP checks Autter requests on a schedule, and journey checks (kind journey) that replay a saved signed-out, read-only journey in a browser; a check that keeps failing opens a Runtime issue (a journey check only after it has passed once). Refused with feature_disabled until the organization turns synthetic checks on. Writing needs the owner or admin role; the plan limits the number of checks and the fastest interval (limit_reached). Oldest first. Scope: api:read."
       responses:
         "200":
           description: The synthetic checks.
@@ -236,7 +236,7 @@ paths:
       tags:
         - Synthetic checks
       summary: Create or update a synthetic check by name
-      description: "Idempotent: the body is the whole synthetic check, and fields left out take their defaults. Creates the synthetic check when none has this name (201), updates the one that has it (200), and writes nothing when it already matches (200). Each write is recorded in the organization's audit log. HTTP checks Autter requests on a schedule; a check that keeps failing opens a Runtime issue. Refused with feature_disabled until the organization turns synthetic checks on. Writing needs the owner or admin role; the plan limits the number of checks and the fastest interval (limit_reached). Scope: api:write."
+      description: "Idempotent: the body is the whole synthetic check, and fields left out take their defaults. Creates the synthetic check when none has this name (201), updates the one that has it (200), and writes nothing when it already matches (200). Each write is recorded in the organization's audit log. HTTP checks Autter requests on a schedule, and journey checks (kind journey) that replay a saved signed-out, read-only journey in a browser; a check that keeps failing opens a Runtime issue (a journey check only after it has passed once). Refused with feature_disabled until the organization turns synthetic checks on. Writing needs the owner or admin role; the plan limits the number of checks and the fastest interval (limit_reached). Scope: api:write."
       requestBody:
         required: true
         content:
@@ -1201,6 +1201,12 @@ components:
     SyntheticCheckInput:
       type: object
       properties:
+        kind:
+          description: Default http. journey replays a saved journey of the repository (the Journeys tab) in a browser against url, with no AI calls; only signed-out journeys that write nothing can be checked. Fixed once the check exists.
+          type: string
+          enum:
+            - http
+            - journey
         name:
           description: When sent, it must equal the name in the path.
           type: string
@@ -1208,7 +1214,13 @@ components:
         url:
           type: string
           maxLength: 2000
-          description: An http or https address reachable from the internet.
+          description: An http or https address reachable from the internet. For a journey check, the site's address only (https://app.example.com); the journey opens its own pages on it.
+        journey_id:
+          description: "Journey checks: the journey to replay (required). Must be null or absent for an http check."
+          anyOf:
+            - type: string
+              maxLength: 200
+            - type: "null"
         method:
           description: Default GET.
           type: string
@@ -1239,7 +1251,7 @@ components:
           minimum: 1000
           maximum: 30000
         interval_seconds:
-          description: Default 300. The free plan runs checks every 300 seconds at the fastest.
+          description: "http: 60, 300, 900 or 3600, default 300; the free plan runs them every 300 seconds at the fastest. journey: 900, 3600, 21600 or 86400, default 3600; the free plan runs them every 3600 seconds at the fastest."
           anyOf:
             - type: number
               const: 60
@@ -1249,6 +1261,10 @@ components:
               const: 900
             - type: number
               const: 3600
+            - type: number
+              const: 21600
+            - type: number
+              const: 86400
         latency_threshold_ms:
           anyOf:
             - type: integer
@@ -1287,9 +1303,19 @@ components:
           type: string
         name:
           type: string
+        kind:
+          type: string
+          enum:
+            - http
+            - journey
         url:
           type: string
           description: "As stored: normalized, so https://example.com reads back as https://example.com/."
+        journey_id:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: "Journey checks: the journey replayed; null for http checks."
         method:
           type: string
           enum:
@@ -1370,6 +1396,12 @@ components:
         issue_id:
           type: string
           description: The Runtime issue the check opens while it fails.
+        first_passed_at:
+          anyOf:
+            - type: string
+              description: An ISO 8601 timestamp.
+            - type: "null"
+          description: "Journey checks: when the check first passed against its url. It opens no Runtime issue before that. Null for http checks."
         created_by:
           anyOf:
             - type: string
@@ -1384,7 +1416,9 @@ components:
         - id
         - repository_id
         - name
+        - kind
         - url
+        - journey_id
         - method
         - header_names
         - expected_status
@@ -1405,6 +1439,7 @@ components:
         - consecutive_failures
         - firing
         - issue_id
+        - first_passed_at
         - created_by
         - created_at
         - updated_at
@@ -1423,9 +1458,19 @@ components:
                 type: string
               name:
                 type: string
+              kind:
+                type: string
+                enum:
+                  - http
+                  - journey
               url:
                 type: string
                 description: "As stored: normalized, so https://example.com reads back as https://example.com/."
+              journey_id:
+                anyOf:
+                  - type: string
+                  - type: "null"
+                description: "Journey checks: the journey replayed; null for http checks."
               method:
                 type: string
                 enum:
@@ -1506,6 +1551,12 @@ components:
               issue_id:
                 type: string
                 description: The Runtime issue the check opens while it fails.
+              first_passed_at:
+                anyOf:
+                  - type: string
+                    description: An ISO 8601 timestamp.
+                  - type: "null"
+                description: "Journey checks: when the check first passed against its url. It opens no Runtime issue before that. Null for http checks."
               created_by:
                 anyOf:
                   - type: string
@@ -1520,7 +1571,9 @@ components:
               - id
               - repository_id
               - name
+              - kind
               - url
+              - journey_id
               - method
               - header_names
               - expected_status
@@ -1541,6 +1594,7 @@ components:
               - consecutive_failures
               - firing
               - issue_id
+              - first_passed_at
               - created_by
               - created_at
               - updated_at

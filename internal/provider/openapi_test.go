@@ -20,7 +20,6 @@ import (
 // Provider attributes that are not input fields of the API, with why.
 var notInAPIInput = map[string]string{
 	"repository_id":          "the repository is in the path",
-	"kind":                   "not an API field yet; never sent while it is http",
 	"widgets.filters.values": "the API's value when it is a list",
 }
 
@@ -142,6 +141,9 @@ func TestSchemasMatchTheOpenAPIDocument(t *testing.T) {
 		}
 		// Every output field is managed, computed, or deliberately left out.
 		known := map[string]bool{"name": true, "repository_id": true}
+		if c.spec.kind == syntheticCheckSpec().kind {
+			known["kind"] = true // read and sent by checkExtras
+		}
 		for _, f := range append(append([]string{}, c.spec.fields...), c.spec.computed...) {
 			known[f] = true
 		}
