@@ -1,0 +1,17 @@
+# Build output
+/terraform-provider-autter
+/dist/
+
+# Terraform working files (examples, manual runs)
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+
+# Editors
+.idea/
+.vscode/
+*.swp
+.DS_Store
