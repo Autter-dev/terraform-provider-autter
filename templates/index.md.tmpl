@@ -1,0 +1,71 @@
+---
+page_title: "Provider: Autter"
+description: |-
+  Manage Autter alert rules, synthetic checks and dashboards as code.
+---
+
+# Autter Provider
+
+The Autter provider manages [Autter](https://autter.dev) alert rules, synthetic checks and Runtime dashboards
+through the Autter API (`/api/v1`).
+
+## Example Usage
+
+{{ tffile "examples/provider/provider.tf" }}
+
+## Authentication
+
+The provider authenticates with a personal access token, created in the Autter dashboard under
+**Settings → Access Tokens**. Give it the `api:read` and `api:write` scopes, or no scope restrictions.
+A token scoped to MCP only is refused.
+
+Set the token in the `AUTTER_API_TOKEN` environment variable rather than in configuration. `api_token` in the
+provider block overrides it.
+
+The member who owns the token needs a role that can make the change, as in the dashboard:
+
+| Resource | Create | Change or delete |
+| --- | --- | --- |
+| Alert rules | owner, admin | owner, admin |
+| Synthetic checks | owner, admin | owner, admin |
+| Dashboards | any member except viewers | owner, admin, or the member who created it |
+
+Synthetic checks and Runtime dashboards must be turned on for the organization first; until they are,
+the API answers that the feature is off and says where to turn it on.
+
+## How resources are identified
+
+A resource is identified by its repository and its **name**, which is unique within the repository.
+
+- Changing `name` or `repository_id` replaces the resource: a rename is a delete and a create.
+- Creating a resource whose name is already in use **adopts** the existing one: Terraform manages it from then
+  on and replaces its settings with the configuration, and the apply prints a warning. This is how the alert
+  rules and dashboards a repository starts with are brought under Terraform.
+- Import with `<repository>:<name>`, where `<repository>` is the repository's id or `owner/repo`:
+  `terraform import autter_alert_rule.checkout "acme/web:Checkout errors"`, or an `import` block.
+- If two resources in a repository share a name (the dashboard allows it), the provider stops with both ids:
+  rename all but one in the dashboard, then run Terraform again.
+
+## Changes made outside Terraform
+
+Autter normalizes what it stores: triggers are lower-cased, `https://example.com` is stored as
+`https://example.com/`, widgets get default fields and a layout. None of this shows as a change. The provider
+remembers, for each field, what Autter returned after the last apply; when Autter later returns something
+else, someone changed it outside Terraform, and the next plan shows that field changing back.
+
+A check's header values are never returned by Autter. A header added or removed outside Terraform is detected;
+a value changed outside Terraform under the same name is not.
+
+## Rate limits
+
+Each token can make 60 reads and 10 writes a minute through the API, counted apart from its MCP use. The
+provider sends writes one at a time and, when the limit is reached, waits for the time the API gives in
+`Retry-After` and logs the wait. A first apply of many resources therefore takes about a minute per ten
+resources. Reads during a refresh are grouped: one request per repository and resource type.
+
+## Exporting existing resources
+
+Each alert rule, synthetic check and dashboard in the Autter dashboard has **Export as Terraform**, which writes
+configuration for this provider. See the [export guide](guides/export-from-autter).
+
+{{ .SchemaMarkdown | trimspace }}
