@@ -33,8 +33,9 @@ func NewAlertRuleResource() resource.Resource {
 	return &apiResource{spec: alertRuleSpec()}
 }
 
-func stringList(description string, max int, values ...validator.String) schema.ListAttribute {
-	validators := []validator.List{listvalidator.SizeAtMost(max), listvalidator.ValueStringsAre(stringvalidator.LengthBetween(1, 200))}
+// stringList is a list of up to 50 strings of 1 to 200 characters, as the API's alert rule lists are.
+func stringList(description string, values ...validator.String) schema.ListAttribute {
+	validators := []validator.List{listvalidator.SizeAtMost(50), listvalidator.ValueStringsAre(stringvalidator.LengthBetween(1, 200))}
 	if len(values) > 0 {
 		validators = append(validators, listvalidator.ValueStringsAre(values...))
 	}
@@ -68,7 +69,7 @@ func recipientsAttribute(description string) schema.SingleNestedAttribute {
 			"assignee": schema.BoolAttribute{Optional: true, Description: "The issue's assignee."},
 			"watchers": schema.BoolAttribute{Optional: true, Description: "The issue's assignee and every member who assigned, resolved, ignored or reopened it."},
 			"everyone": schema.BoolAttribute{Optional: true, Description: "Every member of the organization."},
-			"user_ids": stringList("These members, by user id.", 50),
+			"user_ids": stringList("These members, by user id."),
 		},
 	}
 }
@@ -96,10 +97,10 @@ func alertRuleSpec() *resourceSpec {
 			Optional:    true,
 			Description: "Which issues the rule applies to. Left out: every issue.",
 			Attributes: map[string]schema.Attribute{
-				"environments": stringList("Environments; empty or left out: any environment.", 50),
-				"services":     stringList("Services; empty or left out: any service.", 50),
-				"levels":       stringList("Issue levels, for example `fatal`, `error`, `warning`.", 50),
-				"priorities":   stringList("Priorities: `p0` to `p3`, or `none` for an issue not ranked yet.", 50, stringvalidator.OneOfCaseInsensitive(alertPriorities...)),
+				"environments": stringList("Environments; empty or left out: any environment."),
+				"services":     stringList("Services; empty or left out: any service."),
+				"levels":       stringList("Issue levels, for example `fatal`, `error`, `warning`."),
+				"priorities":   stringList("Priorities: `p0` to `p3`, or `none` for an issue not ranked yet.", stringvalidator.OneOfCaseInsensitive(alertPriorities...)),
 				"error_type":   textMatchAttribute("Match the issue's error type."),
 				"message":      textMatchAttribute("Match the issue's message, or its title when it has none."),
 				"assignee": schema.StringAttribute{
@@ -157,22 +158,20 @@ func alertRuleSpec() *resourceSpec {
 }
 
 func validateAlertRule(_ context.Context, attrs map[string]attr.Value, diags *diag.Diagnostics) {
-	actionsValue := attrs["actions"]
-	actions := object(actionsValue)
+	actions := object(attrs["actions"])
 	if actions == nil {
 		return
 	}
-	any := false
 	for _, key := range []string{"slack", "email", "in_app", "oncall"} {
 		if !known(actions[key]) {
 			return // Decided at apply time.
 		}
 	}
+	chosen := boolTrue(actions["oncall"])
 	for _, key := range []string{"slack", "email", "in_app"} {
-		any = any || isSet(actions[key])
+		chosen = chosen || isSet(actions[key])
 	}
-	any = any || boolTrue(actions["oncall"])
-	if !any {
+	if !chosen {
 		diags.AddAttributeError(path.Root("actions"), "No action",
 			"Choose at least one action: slack (slack = {} for the repository's Slack route), email, in_app, or oncall = true.")
 	}

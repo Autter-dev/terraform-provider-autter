@@ -107,13 +107,13 @@ func integer(raw any) (int64, bool) {
 	return 0, false
 }
 
-func intOr(raw any, def int64, what string, min, max int64) (int64, error) {
+func intOr(raw any, def int64, what string, lowest, highest int64) (int64, error) {
 	if raw == nil {
 		return def, nil
 	}
 	n, ok := integer(raw)
-	if !ok || n < min || n > max {
-		return 0, fail("%s must be a whole number from %d to %d.", what, min, max)
+	if !ok || n < lowest || n > highest {
+		return 0, fail("%s must be a whole number from %d to %d.", what, lowest, highest)
 	}
 	return n, nil
 }

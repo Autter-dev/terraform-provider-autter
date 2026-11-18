@@ -119,7 +119,7 @@ func TestDecodesErrors(t *testing.T) {
 		t.Fatalf("non-JSON: %#v", err)
 	}
 	_, err = c.ListResources(ctx, "web", Dashboards)
-	if !IsRepositoryNotFound(err) || fmt.Sprint(err.(*APIError).Candidates()) != "[acme/web other/web]" {
+	if !errors.As(err, &apiErr) || apiErr.Code != CodeRepositoryNotFound || fmt.Sprint(apiErr.Candidates()) != "[acme/web other/web]" {
 		t.Fatalf("repository: %#v", err)
 	}
 }

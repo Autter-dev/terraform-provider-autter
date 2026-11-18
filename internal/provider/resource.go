@@ -250,7 +250,7 @@ func (r *apiResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	case client.IsRepositoryNotFound(err):
 		resp.Diagnostics.AddWarning("Repository no longer connected",
-			fmt.Sprintf("The repository %q is no longer connected to the organization, so the %s is no longer managed. %s", repository, r.label(name), err.(*client.APIError).Message))
+			fmt.Sprintf("The repository %q is no longer connected to the organization, so the %s is no longer managed. %s", repository, r.label(name), err))
 		resp.State.RemoveResource(ctx)
 		return
 	case err != nil:
