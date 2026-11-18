@@ -70,9 +70,45 @@ func TestCheckURLHeadersAndStrictInput(t *testing.T) {
 	if got := s.Headers("repo-1", "Health"); got["X-Key"] != "secret" {
 		t.Errorf("headers stored: %v", got)
 	}
-	_, _, err = c.PutResource(ctx, "repo-1", client.SyntheticChecks, "Health", map[string]any{"url": "https://example.com", "kind": "http"})
+	_, _, err = c.PutResource(ctx, "repo-1", client.SyntheticChecks, "Health", map[string]any{"url": "https://example.com", "type": "http"})
 	if client.ErrorCode(err) != client.CodeInvalidArgument {
 		t.Errorf("unknown top-level key: %v", err)
+	}
+}
+
+func TestJourneyChecks(t *testing.T) {
+	_, c := setup(t)
+	ctx := context.Background()
+	check, created, err := c.PutResource(ctx, "repo-1", client.SyntheticChecks, "Sign-up", map[string]any{
+		"kind": "journey", "url": "https://app.example.com", "journey_id": "wj_1",
+	})
+	if err != nil || !created {
+		t.Fatalf("create: %v", err)
+	}
+	if check["kind"] != "journey" || check["url"] != "https://app.example.com/" || check["interval_seconds"] != json.Number("3600") ||
+		check["method"] != "GET" || check["first_passed_at"] != nil {
+		t.Errorf("journey check: %v", check)
+	}
+	// Without kind, a PUT keeps the check's kind; another kind is refused.
+	if _, _, err := c.PutResource(ctx, "repo-1", client.SyntheticChecks, "Sign-up", map[string]any{"url": "https://app.example.com", "journey_id": "wj_1"}); err != nil {
+		t.Errorf("same kind: %v", err)
+	}
+	refused := map[string]map[string]any{
+		"kind change":     {"kind": "http", "url": "https://app.example.com"},
+		"http-only":       {"kind": "journey", "url": "https://app.example.com", "journey_id": "wj_1", "method": "GET"},
+		"path":            {"kind": "journey", "url": "https://app.example.com/signup", "journey_id": "wj_1"},
+		"no journey":      {"kind": "journey", "url": "https://app.example.com"},
+		"http interval":   {"kind": "journey", "url": "https://app.example.com", "journey_id": "wj_1", "interval_seconds": 60},
+		"journey on http": {"url": "https://example.com", "journey_id": "wj_1"},
+	}
+	for what, body := range refused {
+		name := "Sign-up"
+		if what == "journey on http" {
+			name = "Plain"
+		}
+		if _, _, err := c.PutResource(ctx, "repo-1", client.SyntheticChecks, name, body); client.ErrorCode(err) != client.CodeInvalidArgument {
+			t.Errorf("%s: %v", what, err)
+		}
 	}
 }
 

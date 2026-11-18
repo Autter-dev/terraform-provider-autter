@@ -531,6 +531,10 @@ func (s *Server) put(r *http.Request, kind string, repo *Repository, name string
 	if sent, ok := body["name"].(string); ok && strings.TrimSpace(sent) != name {
 		return apiError(400, "invalid_argument", fmt.Sprintf("The body names %q but the path names %q.", strings.TrimSpace(sent), name), nil)
 	}
+	found := s.byName(kind, repo.ID, name)
+	if len(found) > 1 {
+		return conflict(kind, name, found)
+	}
 	var fields map[string]any
 	var headers map[string]string
 	var err error
@@ -538,7 +542,14 @@ func (s *Server) put(r *http.Request, kind string, repo *Repository, name string
 	case AlertRules:
 		fields, err = normalizeAlertRule(body)
 	case SyntheticChecks:
-		fields, headers, err = normalizeCheck(body)
+		currentKind := ""
+		if len(found) == 1 {
+			currentKind = "http"
+			if k, ok := found[0].fields["kind"].(string); ok && k != "" {
+				currentKind = k
+			}
+		}
+		fields, headers, err = normalizeCheck(body, currentKind)
 	case Dashboards:
 		fields, err = normalizeDashboard(body)
 	}
@@ -547,10 +558,6 @@ func (s *Server) put(r *http.Request, kind string, repo *Repository, name string
 	}
 	fields["name"] = name
 
-	found := s.byName(kind, repo.ID, name)
-	if len(found) > 1 {
-		return conflict(kind, name, found)
-	}
 	if len(found) == 0 {
 		if !s.mayWrite(kind) {
 			return roleError(kind, "create")
@@ -611,6 +618,7 @@ func addCheckStatus(fields map[string]any, now string) {
 	fields["consecutive_failures"] = json.Number("0")
 	fields["firing"] = false
 	fields["issue_id"] = "iss_" + fields["id"].(string)
+	fields["first_passed_at"] = nil
 }
 
 // canonical round-trips v through JSON so equal values compare equal whatever their Go types.

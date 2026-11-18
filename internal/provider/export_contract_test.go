@@ -71,6 +71,7 @@ func loadExportFixture(t *testing.T, file, kind string) exportFixture {
 var exportFixtures = []struct{ file, kind string }{
 	{"alert_rule", mockapi.AlertRules},
 	{"synthetic_check", mockapi.SyntheticChecks},
+	{"synthetic_check_journey", mockapi.SyntheticChecks},
 	{"dashboard", mockapi.Dashboards},
 }
 
@@ -83,7 +84,7 @@ func TestAccExportContractImport(t *testing.T) {
 			name := fixture.resource["name"].(string)
 
 			action, writes := plancheck.ResourceActionNoop, []string{}
-			if fixture.kind == mockapi.SyntheticChecks {
+			if len(fixture.vars) > 0 {
 				// Header values are never returned: the import plans one update that sends them.
 				action, writes = plancheck.ResourceActionUpdate, []string{"PUT updated"}
 			}

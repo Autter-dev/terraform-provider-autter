@@ -1,6 +1,6 @@
 # Terraform Provider for Autter
 
-Manage [Autter](https://autter.dev) alert rules, synthetic checks and Runtime dashboards as code, through the
+Manage [Autter](https://autter.dev) alert rules, synthetic checks (HTTP and journey) and Runtime dashboards as code, through the
 Autter API (`/api/v1`).
 
 - Registry: [`Autter-dev/autter`](https://registry.terraform.io/providers/Autter-dev/autter/latest/docs)

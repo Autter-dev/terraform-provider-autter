@@ -1,1 +1,2 @@
-monorepo a10377ef8
+monorepo: a local merge of origin/feat/terraform-provider-export (4af097ae5) and origin/feat/journey-checks (832cdb329).
+export/synthetic_check_journey.{json,tf}: the .tf written by that merge's terraformExport from the .json; the monorepo does not pin it yet.

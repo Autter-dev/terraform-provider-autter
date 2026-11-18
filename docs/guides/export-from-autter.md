@@ -28,6 +28,9 @@ to what Autter stores.
    returns header values. Set the variables (for example in a `.tfvars` file kept out of version control or
    with `TF_VAR_…` environment variables); the plan then shows one in-place update that sends them.
 
+   A journey check exports with `kind = "journey"` and its `journey_id`, and without the HTTP-only
+   attributes; it imports with no changes.
+
 4. Run `terraform apply`.
 
 You can also skip the import: applying the exported configuration adopts the resource with the same name

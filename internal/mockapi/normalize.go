@@ -26,6 +26,9 @@ var (
 	matchOps        = []string{"equals", "contains", "starts_with", "regex"}
 	checkMethods    = []string{"GET", "HEAD"}
 	checkIntervals  = []int64{60, 300, 900, 3600}
+	journeyInterval = []int64{900, 3600, 21600, 86400}
+	// httpOnlyFields are refused in a journey check's input; the API stores their defaults.
+	httpOnlyFields  = []string{"method", "headers", "expected_status", "body_contains", "timeout_ms", "latency_threshold_ms"}
 	dashboardRanges = []string{"1h", "6h", "24h", "7d", "30d"}
 	dashboardViz    = []string{"line", "bar", "stat", "table"}
 	dashboardSource = []string{"logs", "spans", "errors", "metrics", "llm", "sql"}
@@ -263,10 +266,39 @@ func numberOrNil(raw any) any {
 // ── Synthetic checks ────────────────────────────────────────────────────────
 
 // normalizeCheck returns the stored fields of a check and its headers.
-func normalizeCheck(in map[string]any) (map[string]any, map[string]string, error) {
-	if err := strictKeys(in, "name", "url", "method", "headers", "expected_status", "body_contains", "timeout_ms", "interval_seconds",
+// currentKind is the kind of the check with this name, "" when there is none.
+func normalizeCheck(in map[string]any, currentKind string) (map[string]any, map[string]string, error) {
+	if err := strictKeys(in, "kind", "name", "url", "journey_id", "method", "headers", "expected_status", "body_contains", "timeout_ms", "interval_seconds",
 		"latency_threshold_ms", "failures_to_fire", "service", "environment", "enabled"); err != nil {
 		return nil, nil, err
+	}
+	kind := currentKind
+	if kind == "" {
+		kind = "http"
+	}
+	if raw, ok := in["kind"]; ok {
+		k, _ := raw.(string)
+		k = strings.ToLower(strings.TrimSpace(k))
+		if k != "http" && k != "journey" {
+			return nil, nil, fail("Kind: choose http or journey.")
+		}
+		kind = k
+	}
+	if currentKind != "" && kind != currentKind {
+		return nil, nil, fail("Kind: a check's kind cannot be changed. Add a new check of the other kind instead.")
+	}
+	journeyID := nullableString(in["journey_id"])
+	if kind == "journey" {
+		for _, field := range httpOnlyFields {
+			if in[field] != nil {
+				return nil, nil, fail("%s: a journey check has no %s.", field, field)
+			}
+		}
+		if journeyID == nil {
+			return nil, nil, fail("Journey: choose the journey to replay.")
+		}
+	} else if journeyID != nil {
+		return nil, nil, fail("journey_id: only a journey check replays a journey.")
 	}
 	rawURL, _ := in["url"].(string)
 	u, err := url.Parse(strings.TrimSpace(rawURL))
@@ -275,6 +307,9 @@ func normalizeCheck(in map[string]any) (map[string]any, map[string]string, error
 	}
 	if u.Path == "" {
 		u.Path = "/"
+	}
+	if kind == "journey" && (u.Path != "/" || u.RawQuery != "" || u.Fragment != "") {
+		return nil, nil, fail("URL: for a journey check, enter only the site's address (%s://%s); the journey opens its own pages on it.", u.Scheme, u.Host)
 	}
 	method := "GET"
 	if m, ok := in["method"].(string); ok {
@@ -298,14 +333,18 @@ func normalizeCheck(in map[string]any) (map[string]any, map[string]string, error
 	if len(headers) > 20 {
 		return nil, nil, fail("At most 20 headers.")
 	}
-	out := map[string]any{"url": u.String(), "method": method, "body_contains": nullableString(in["body_contains"]), "service": nullableString(in["service"])}
+	out := map[string]any{"kind": kind, "journey_id": journeyID, "url": u.String(), "method": method, "body_contains": nullableString(in["body_contains"]), "service": nullableString(in["service"])}
+	defaultInterval, intervals := int64(300), checkIntervals
+	if kind == "journey" {
+		defaultInterval, intervals = 3600, journeyInterval
+	}
 	ints := []struct {
 		key           string
 		def, min, max int64
 	}{
 		{"expected_status", 200, 100, 599},
 		{"timeout_ms", 10000, 1000, 30000},
-		{"interval_seconds", 300, 60, 3600},
+		{"interval_seconds", defaultInterval, 60, 86400},
 		{"failures_to_fire", 2, 1, 10},
 	}
 	for _, f := range ints {
@@ -315,8 +354,8 @@ func normalizeCheck(in map[string]any) (map[string]any, map[string]string, error
 		}
 		out[f.key] = json.Number(strconv.FormatInt(n, 10))
 	}
-	if n, _ := integer(out["interval_seconds"]); !contains(checkIntervals, n) {
-		return nil, nil, fail("Interval: 60, 300, 900 or 3600 seconds.")
+	if n, _ := integer(out["interval_seconds"]); !contains(intervals, n) {
+		return nil, nil, fail("Interval: choose %v seconds.", intervals)
 	}
 	out["latency_threshold_ms"] = numberOrNil(in["latency_threshold_ms"])
 	if method == "HEAD" && out["body_contains"] != nil {
